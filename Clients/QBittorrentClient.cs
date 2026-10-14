@@ -106,7 +106,10 @@ public sealed class QBittorrentClient : ITorrentClient
         });
         using var response = await _http.PostAsync("api/v2/auth/login", content, cancellationToken).ConfigureAwait(false);
         EnsureSuccess(response);
-        if ((await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false)).Trim() != "Ok.")
+        // Before 5.2 a login answers 200 "Ok." or "Fails."; 5.2 answers 204
+        // with no body on success and 401 on failure.
+        var result = (await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false)).Trim();
+        if (result.Length > 0 && result != "Ok.")
         {
             throw new InvalidOperationException("qBittorrent rejected the username or password.");
         }
