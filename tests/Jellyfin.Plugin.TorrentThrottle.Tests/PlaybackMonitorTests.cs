@@ -88,6 +88,19 @@ public class PlaybackMonitorTests
         Assert.Null(PlaybackMonitor.GetBitrate(session));
     }
 
+    [Theory]
+    [InlineData(null)]
+    [InlineData("stale-source")]
+    public void SingleMediaSourceSuppliesBitrateWhenTheSelectedSourceIsMissing(string? mediaSourceId)
+    {
+        var session = Session(null!, "one", "203.0.113.10");
+        session.PlayState.MediaSourceId = mediaSourceId;
+        session.NowPlayingItem.MediaSources = [new MediaSourceInfo { Id = "source", Bitrate = 12000000 }];
+        session.NowPlayingItem.MediaStreams = [];
+
+        Assert.Equal(12000000, PlaybackMonitor.GetBitrate(session));
+    }
+
     private static PlaybackProgressEventArgs Event(SessionInfo session, bool paused = false) => new()
     {
         Session = session,

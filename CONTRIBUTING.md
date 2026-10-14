@@ -2,7 +2,7 @@
 
 Use .NET 10. The plugin targets Jellyfin 12; keep the Jellyfin.Controller and Jellyfin.Model package versions together. Keep the GUID consistent across Plugin.cs, the settings page and manifest.json.
 
-Run the release build, tests, and formatting checks before submitting changes. Lint runs the unit tests; the Settings page workflow runs the browser tests. Tests cover concurrent playback, settling and cancellation, bitrate selection, recovery after failures, cookie and API-key authentication, and the hosted event pipeline.
+Run the release build, tests, and formatting checks before submitting changes. Lint runs the unit tests with coverage; the Settings page workflow runs the browser tests. Tests cover concurrent playback, settling and cancellation, bitrate selection, recovery after failures, cookie and API-key authentication, the hosted event pipeline, and the status and connection-test API.
 
 ```sh
 dotnet test tests/Jellyfin.Plugin.TorrentThrottle.Tests --configuration Release
@@ -13,6 +13,21 @@ dotnet format style --verify-no-changes --severity warn
 ```
 
 Screenshots in `docs/images` come from the shared harness in the catalogue repository, using synthetic settings: `../jellyfin-plugins/scripts/capture-screenshots.sh --only=torrent-throttle`.
+
+## Coverage
+
+Use the existing Coverlet collector to measure the plugin's .NET code in Release configuration, matching CI:
+
+```sh
+dotnet test tests/Jellyfin.Plugin.TorrentThrottle.Tests --configuration Release \
+  --collect:"XPlat Code Coverage" --results-directory TestResults
+```
+
+The command prints the path to `TestResults/<run-id>/coverage.cobertura.xml`. Its root `line-rate` multiplied by 100 is the line coverage percentage; `lines-covered` / `lines-valid` and `branches-covered` / `branches-valid` give the underlying counts. Use the report from the latest run, since older reports remain in their own run directories.
+
+The README badge is maintained by hand from that line coverage, rounded to a whole percent, following `jellyfin-plugin-imdb-ratings`. Update it when changing tests or plugin code. Aim for 90–95% line coverage with tests that exercise observable behavior. The badge measures .NET code only; the settings page's JavaScript is tested separately by the browser harness.
+
+The Lint workflow publishes line and branch coverage in its job summary and uploads the Cobertura report as the `coverage` artifact. Generated reports are ignored by Git.
 
 ## Dependency updates
 

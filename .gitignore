@@ -37,6 +37,9 @@ bld/
 *.exe
 *.pdb
 
+# Test coverage reports
+TestResults/
+
 # Keep the README
 !README.md
 

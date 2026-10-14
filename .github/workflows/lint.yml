@@ -31,5 +31,34 @@ jobs:
         dotnet format style --verify-no-changes --severity warn --verbosity minimal
         dotnet format tests/Jellyfin.Plugin.TorrentThrottle.Tests/Jellyfin.Plugin.TorrentThrottle.Tests.csproj style --verify-no-changes --severity warn --verbosity minimal
 
-    - name: Run tests
-      run: dotnet test tests/Jellyfin.Plugin.TorrentThrottle.Tests/ --verbosity minimal
+    - name: Run tests with coverage
+      run: >-
+        dotnet test tests/Jellyfin.Plugin.TorrentThrottle.Tests/ --configuration Release --verbosity minimal
+        --collect:"XPlat Code Coverage" --results-directory TestResults
+
+    - name: Summarize coverage
+      run: |
+        python3 - <<'PY'
+        import os
+        import xml.etree.ElementTree as ET
+        from pathlib import Path
+
+        report, = Path("TestResults").glob("*/coverage.cobertura.xml")
+        coverage = ET.parse(report).getroot()
+        summary = "## .NET coverage\n\n"
+        for label, metric in (("Lines", "lines"), ("Branches", "branches")):
+            covered = int(coverage.attrib[f"{metric}-covered"])
+            total = int(coverage.attrib[f"{metric}-valid"])
+            summary += f"- {label}: {covered / total:.2%} ({covered}/{total})\n"
+        print(summary)
+        with Path(os.environ["GITHUB_STEP_SUMMARY"]).open("a") as output:
+            output.write(summary)
+        PY
+
+    - name: Upload coverage report
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: coverage
+        path: TestResults/**/coverage.cobertura.xml
+        if-no-files-found: warn
