@@ -14,6 +14,9 @@
   <a href="https://github.com/voc0der/jellyfin-plugin-torrent-throttle/tree/main/tests">
     <img src="https://img.shields.io/badge/coverage-95%25-brightgreen" alt=".NET line coverage percentage" />
   </a>
+  <a href="https://github.com/voc0der/jellyfin-plugin-torrent-throttle/actions/workflows/codeql.yml">
+    <img src="https://img.shields.io/github/actions/workflow/status/voc0der/jellyfin-plugin-torrent-throttle/codeql.yml?branch=main&label=codeql" alt="CodeQL status" />
+  </a>
   <a href="https://github.com/voc0der/jellyfin-plugin-torrent-throttle/issues">
     <img src="https://img.shields.io/github/issues/voc0der/jellyfin-plugin-torrent-throttle?color=DAA520" alt="Open issues" />
   </a>
