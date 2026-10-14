@@ -1,0 +1,55 @@
+name: Settings page
+
+# Loads the settings page in a real browser against a stubbed ApiClient and checks that loading,
+# Save and Test connection still work. A page whose Save does nothing builds, loads and passes
+# every unit test, so nothing else here would notice.
+#
+# Only for changes that can affect the page: its markup and script, the configuration class it
+# loads and saves, and the harness itself.
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'Configuration/**'
+      - 'tests/config-page/**'
+      - '.github/workflows/config-page.yml'
+  push:
+    branches: [ main ]
+    paths:
+      - 'Configuration/**'
+      - 'tests/config-page/**'
+      - '.github/workflows/config-page.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  harness:
+    runs-on: ubuntu-latest
+
+    # The bound is for a browser that never comes up.
+    timeout-minutes: 20
+
+    defaults:
+      run:
+        working-directory: tests/config-page
+
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Setup Node
+      uses: actions/setup-node@v7
+      with:
+        node-version: 24
+        cache: npm
+        cache-dependency-path: tests/config-page/package-lock.json
+
+    - name: Install the harness
+      run: |
+        npm ci
+        npx playwright install --with-deps chromium
+
+    - name: Run the harness
+      run: npm test
