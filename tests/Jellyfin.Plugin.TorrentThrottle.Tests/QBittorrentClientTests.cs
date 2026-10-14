@@ -32,6 +32,14 @@ public class QBittorrentClientTests
     }
 
     [Fact]
+    public async Task EmptyNoContentLoginIsASuccessOnQBittorrent52()
+    {
+        using var client = new QBittorrentClient(new("http://example.test", "user", "password", ""), new Handler(request =>
+            request.RequestUri!.AbsolutePath.EndsWith("auth/login") ? new(HttpStatusCode.NoContent) : Ok(Preferences)));
+        Assert.Equal(new SpeedLimits(0, 2048, 1024, 4096), await client.GetLimitsAsync(CancellationToken.None));
+    }
+
+    [Fact]
     public async Task ExpiredPasswordSessionRetriesExactlyOnce()
     {
         var logins = 0;
