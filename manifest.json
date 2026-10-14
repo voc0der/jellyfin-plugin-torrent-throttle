@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/voc0der/jellyfin-plugin-torrent-throttle/main/icon.png",
     "versions": [
       {
+        "version": "1.0.0.2",
+        "changelog": "## What's Changed\n\n- fix(recovery): build the recovery file path with Path.Join (3f85bc6)\n- chore(deps): update all non-major dependencies (4f59fa2)\n\n**Full Changelog**: https://github.com/voc0der/jellyfin-plugin-torrent-throttle/compare/1.0.0.1...1.0.0.2\n",
+        "targetAbi": "12.0.0.0",
+        "sourceUrl": "https://github.com/voc0der/jellyfin-plugin-torrent-throttle/releases/download/1.0.0.2/Torrent_Throttle_1.0.0.2.zip",
+        "checksum": "713a065732820f272de680e8cded863c",
+        "timestamp": "2026-10-14T12:04:10Z"
+      },
+      {
         "version": "1.0.0.1",
         "changelog": "## What's Changed\n\n- feat(throttle): reserve qBittorrent bandwidth for remote playback (2f2ef0c)\n- chore: initial commit (91a8325)\n\n**Full Changelog**: https://github.com/voc0der/jellyfin-plugin-torrent-throttle/compare/1.0.0.0...1.0.0.1\n",
         "targetAbi": "12.0.0.0",
