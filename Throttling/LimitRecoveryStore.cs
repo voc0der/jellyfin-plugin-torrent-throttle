@@ -11,7 +11,7 @@ public class LimitRecoveryStore
     private readonly string _path;
 
     public LimitRecoveryStore(IApplicationPaths paths)
-        : this(Path.Combine(paths.PluginConfigurationsPath, "TorrentThrottle.limits.json"))
+        : this(Path.Join(paths.PluginConfigurationsPath, "TorrentThrottle.limits.json"))
     {
     }
 
