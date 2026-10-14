@@ -1,0 +1,12 @@
+[
+  {
+    "guid": "9f276cce-98c3-4554-b495-61cf673cf34c",
+    "name": "Torrent Throttle",
+    "overview": "Reserve bandwidth for remote playback by adjusting torrent speed limits.",
+    "description": "Event-driven qBittorrent upload throttling with optional download throttling, remote playback accounting, and automatic limit restoration.",
+    "owner": "voc0der",
+    "category": "General",
+    "imageUrl": "https://raw.githubusercontent.com/voc0der/jellyfin-plugin-torrent-throttle/main/icon.png",
+    "versions": []
+  }
+]

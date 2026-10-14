@@ -1,0 +1,35 @@
+name: Lint
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v6
+      with:
+        dotnet-version: 10.0.x
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Check whitespace formatting
+      run: |
+        dotnet format whitespace --verify-no-changes --verbosity minimal
+        dotnet format tests/Jellyfin.Plugin.TorrentThrottle.Tests/Jellyfin.Plugin.TorrentThrottle.Tests.csproj whitespace --verify-no-changes --verbosity minimal
+
+    - name: Check C# style formatting
+      run: |
+        dotnet format style --verify-no-changes --severity warn --verbosity minimal
+        dotnet format tests/Jellyfin.Plugin.TorrentThrottle.Tests/Jellyfin.Plugin.TorrentThrottle.Tests.csproj style --verify-no-changes --severity warn --verbosity minimal
+
+    - name: Run tests
+      run: dotnet test tests/Jellyfin.Plugin.TorrentThrottle.Tests/ --verbosity minimal

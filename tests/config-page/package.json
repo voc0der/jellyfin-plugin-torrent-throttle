@@ -1,0 +1,7 @@
+{
+  "name": "torrent-throttle-config-tests",
+  "private": true,
+  "type": "module",
+  "scripts": { "test": "node --test config-page.test.mjs" },
+  "devDependencies": { "playwright": "^1.63.0" }
+}

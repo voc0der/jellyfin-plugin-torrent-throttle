@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+<head><title>Torrent Throttle</title></head>
+<body>
+<div id="TorrentThrottleConfigPage" data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-input,emby-button,emby-checkbox">
+    <div data-role="content">
+        <div class="content-primary">
+            <form id="TorrentThrottleConfigForm">
+                <h2>Torrent Throttle</h2>
+                <p>Reserve bandwidth for remote Jellyfin streams by adjusting qBittorrent speed limits.</p>
+                <div class="checkboxContainer checkboxContainer-withDescription">
+                    <label class="emby-checkbox-label"><input id="Enabled" type="checkbox" is="emby-checkbox" /><span>Enable torrent throttling</span></label>
+                    <div class="fieldDescription checkboxFieldDescription">Applies your upload cap while idle and reduces it during remote playback. Disabling restores the previous qBittorrent limits.</div>
+                </div>
+                <h3>qBittorrent connection</h3>
+                <div class="inputContainer">
+                    <label class="inputLabel" for="WebUiUrl">Web UI URL</label>
+                    <input is="emby-input" id="WebUiUrl" type="url" required placeholder="http://192.168.1.20:8080" />
+                    <div class="fieldDescription">Must be reachable from the Jellyfin server or container. Include a reverse proxy path if needed. Use HTTPS when the connection crosses an untrusted network. Self-signed certificates are accepted only for private and loopback IP addresses.</div>
+                </div>
+                <div class="inputContainer">
+                    <label class="inputLabel" for="Username">Username</label>
+                    <input is="emby-input" id="Username" type="text" autocomplete="off" />
+                </div>
+                <div class="inputContainer">
+                    <label class="inputLabel" for="Password">Password</label>
+                    <input is="emby-input" id="Password" type="password" autocomplete="new-password" />
+                </div>
+                <div class="inputContainer">
+                    <label class="inputLabel" for="ApiKey">API key (optional)</label>
+                    <input is="emby-input" id="ApiKey" type="password" autocomplete="new-password" />
+                    <div class="fieldDescription">qBittorrent 5.2 or newer. An API key takes precedence over username and password. Credentials are stored in Jellyfin's plugin configuration.</div>
+                </div>
+                <button id="TestConnection" is="emby-button" type="button" class="raised button-secondary"><span>Test connection</span></button>
+                <p id="ConnectionResult" role="status" aria-live="polite">Tests network access and credentials without changing speed limits.</p>
+                <h3>Bandwidth budget</h3>
+                <div class="inputContainer">
+                    <label class="inputLabel" for="MaxUploadKiBps">Maximum torrent upload (KiB/s)</label>
+                    <input is="emby-input" id="MaxUploadKiBps" type="number" min="1" max="100000000" step="1" required />
+                    <div class="fieldDescription">The starting cap before subtracting remote streams. 1 MiB/s = 1024 KiB/s ≈ 8.39 Mbps. Both normal and alternative speed profiles use this budget while enabled.</div>
+                </div>
+                <div class="checkboxContainer checkboxContainer-withDescription">
+                    <label class="emby-checkbox-label"><input id="ThrottleDownload" type="checkbox" is="emby-checkbox" /><span>Also throttle downloads</span></label>
+                    <div class="fieldDescription checkboxFieldDescription">Subtract the same playback bandwidth from the download cap. Leave off to let qBittorrent manage its own download limits.</div>
+                </div>
+                <div class="inputContainer">
+                    <label class="inputLabel" for="MaxDownloadKiBps">Maximum torrent download (KiB/s)</label>
+                    <input is="emby-input" id="MaxDownloadKiBps" type="number" min="1" max="100000000" step="1" required />
+                </div>
+                <div class="inputContainer">
+                    <label class="inputLabel" for="DelaySeconds">Playback settling time (seconds)</label>
+                    <input is="emby-input" id="DelaySeconds" type="number" min="0" max="120" step="1" required />
+                    <div class="fieldDescription">Default: 5. For transcoding, starts when an output bitrate becomes available. A stream that stops before the delay ends does not reduce the cap.</div>
+                </div>
+                <div class="inputContainer">
+                    <label class="inputLabel" for="HeadroomPercent">Extra bandwidth reservation (%)</label>
+                    <input is="emby-input" id="HeadroomPercent" type="number" min="0" max="100" step="1" required />
+                    <div class="fieldDescription">Added to reported stream bitrates to allow for buffering and network overhead. This is a bitrate estimate, not a measurement of total WAN traffic.</div>
+                </div>
+                <div class="inputContainer">
+                    <label class="inputLabel" for="UnknownStreamMbps">Fallback stream bitrate (Mbps)</label>
+                    <input is="emby-input" id="UnknownStreamMbps" type="number" min="1" max="100000" step="1" required />
+                    <div class="fieldDescription">Used when a stream's bitrate is unknown. Transcode metadata gets up to 30 seconds to arrive before the settling time begins. Local playback is excluded using Jellyfin's network settings.</div>
+                </div>
+                <h3>Current activity</h3>
+                <p id="ThrottleActivity" role="status" aria-live="polite">Loading status…</p>
+                <button id="RefreshStatus" is="emby-button" type="button" class="raised button-secondary"><span>Refresh status</span></button>
+                <p class="fieldDescription">Concurrent streams share one budget. Pausing or stopping releases that stream's reservation. Caps never fall below 1 KiB/s because zero means unlimited in qBittorrent.</p>
+                <div><button id="SaveConfiguration" is="emby-button" type="submit" class="raised button-submit block"><span>Save</span></button></div>
+            </form>
+        </div>
+    </div>
+    <script>
+        (function () {
+            'use strict';
+            var TorrentThrottleConfig = { pluginId: "9f276cce-98c3-4554-b495-61cf673cf34c" };
+            var page = document.getElementById('TorrentThrottleConfigPage');
+            var form = page.querySelector('form');
+            var config = null;
+            var strings = ['WebUiUrl', 'Username', 'Password', 'ApiKey'];
+            var numbers = ['MaxUploadKiBps', 'MaxDownloadKiBps', 'DelaySeconds', 'HeadroomPercent', 'UnknownStreamMbps'];
+            var flags = ['Enabled', 'ThrottleDownload'];
+            var save = page.querySelector('#SaveConfiguration');
+            function field(name) { return page.querySelector('#' + name); }
+            function read() {
+                var result = Object.assign({}, config);
+                strings.forEach(function (key) { result[key] = field(key).value; });
+                numbers.forEach(function (key) { result[key] = Number(field(key).value); });
+                flags.forEach(function (key) { result[key] = field(key).checked; });
+                return result;
+            }
+            function syncDownload() { field('MaxDownloadKiBps').disabled = !field('ThrottleDownload').checked; }
+            function value(data, name) { return data[name] !== undefined ? data[name] : data[name.charAt(0).toLowerCase() + name.slice(1)]; }
+            function speed(bytes) { return Math.round(bytes / 1024).toLocaleString() + ' KiB/s'; }
+            function refresh() {
+                return ApiClient.ajax({ type: 'GET', url: ApiClient.getUrl('TorrentThrottle/Status'), dataType: 'json' }).then(function (data) {
+                    var text = value(data, 'State') || 'Unavailable';
+                    if (value(data, 'Error')) {
+                        text += ' — ' + value(data, 'Error');
+                    } else if (value(data, 'UploadBytesPerSecond') != null) {
+                        text += ' · ' + value(data, 'RemoteStreams') + ' remote streams · ' + speed(value(data, 'ReservedBytesPerSecond')) + ' reserved · Upload cap: ' + speed(value(data, 'UploadBytesPerSecond'));
+                        if (value(data, 'DownloadBytesPerSecond') != null) { text += ' · Download cap: ' + speed(value(data, 'DownloadBytesPerSecond')); }
+                    }
+                    field('ThrottleActivity').textContent = text;
+                }).catch(function () { field('ThrottleActivity').textContent = 'Could not load status. Check that the plugin is running.'; });
+            }
+            page.addEventListener('pageshow', function () {
+                save.disabled = true;
+                Dashboard.showLoadingMsg();
+                ApiClient.getPluginConfiguration(TorrentThrottleConfig.pluginId).then(function (data) {
+                    config = data;
+                    strings.forEach(function (key) { field(key).value = data[key] || ''; });
+                    numbers.forEach(function (key) { field(key).value = data[key]; });
+                    flags.forEach(function (key) { field(key).checked = !!data[key]; });
+                    syncDownload();
+                    save.disabled = false;
+                    return refresh();
+                }).catch(function () { Dashboard.alert('Could not load Torrent Throttle settings.'); }).finally(function () { Dashboard.hideLoadingMsg(); });
+            });
+            field('ThrottleDownload').addEventListener('change', syncDownload);
+            field('RefreshStatus').addEventListener('click', refresh);
+            field('TestConnection').addEventListener('click', function () {
+                var button = this;
+                button.disabled = true;
+                field('ConnectionResult').textContent = 'Connecting…';
+                ApiClient.ajax({ type: 'POST', url: ApiClient.getUrl('TorrentThrottle/TestConnection'), data: JSON.stringify(read()), contentType: 'application/json', dataType: 'json' }).then(function (data) {
+                    field('ConnectionResult').textContent = value(data, 'Message');
+                }).catch(async function (error) {
+                    var message = 'Connection failed. Check the Web UI URL, credentials and network access from Jellyfin.';
+                    try {
+                        var result = error && typeof error.json === 'function' ? await error.json() : null;
+                        if (result && typeof value(result, 'Message') === 'string') { message = value(result, 'Message'); }
+                    } catch (_) {
+                        // Network failures and proxy error pages may not contain JSON.
+                    }
+                    field('ConnectionResult').textContent = message;
+                }).finally(function () { button.disabled = false; });
+            });
+            form.addEventListener('submit', function (event) {
+                event.preventDefault();
+                if (!config || !form.checkValidity()) { return; }
+                save.disabled = true;
+                Dashboard.showLoadingMsg();
+                var next = read();
+                ApiClient.updatePluginConfiguration(TorrentThrottleConfig.pluginId, next).then(function (result) {
+                    config = next;
+                    Dashboard.processPluginConfigurationUpdateResult(result);
+                    return refresh();
+                }).catch(function () { Dashboard.alert('Could not save Torrent Throttle settings. Check the values and try again.'); }).finally(function () {
+                    save.disabled = false;
+                    Dashboard.hideLoadingMsg();
+                });
+            });
+        })();
+    </script>
+</div>
+</body>
+</html>
