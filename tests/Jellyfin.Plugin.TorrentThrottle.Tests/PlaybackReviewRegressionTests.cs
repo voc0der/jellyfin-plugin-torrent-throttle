@@ -16,6 +16,115 @@ namespace Jellyfin.Plugin.TorrentThrottle.Tests;
 public class PlaybackReviewRegressionTests
 {
     [Fact]
+    public async Task ExistingPlaybackIsReconciledAtStartupAndSettlesWithoutFurtherEvents()
+    {
+        await using var h = new Harness();
+        h.Config.DelaySeconds = 1;
+        h.Session();
+
+        await h.StartAsync("Settling");
+        Assert.Equal(1, h.Status.Current.PendingStreams);
+        Assert.Equal(0, h.Status.Current.ReservedBytesPerSecond);
+        Assert.Equal(10000 * 1024, h.Status.Current.UploadBytesPerSecond);
+
+        await Until(() => h.Status.Current.State == "Throttling");
+        Assert.Equal(1, h.Status.Current.RemoteStreams);
+        Assert.Equal(0, h.Status.Current.PendingStreams);
+        Assert.Equal(1000000, h.Status.Current.ReservedBytesPerSecond);
+        Assert.Equal(9023 * 1024, h.Status.Current.UploadBytesPerSecond);
+    }
+
+    [Fact]
+    public async Task DisablingWithAnInvalidUrlStillRestoresOwnedLimits()
+    {
+        await using var h = new Harness();
+        var original = h.Client.Current;
+        await h.StartAsync();
+        Assert.NotNull(h.Recovery.Load());
+
+        h.Config.Enabled = false;
+        h.Config.WebUiUrl = "not a URL";
+        await h.PulseAsync();
+
+        Assert.Equal("Disabled", h.Status.Current.State);
+        Assert.Equal(original, h.Client.Current);
+        Assert.Null(h.Recovery.Load());
+        Assert.False(h.Monitor.ExecuteTask!.IsCompleted);
+    }
+
+    [Fact]
+    public async Task FailedShutdownRestorationKeepsOriginalLimitsForTheNextStart()
+    {
+        await using var h = new Harness();
+        var original = h.Client.Current;
+        await h.StartAsync();
+        h.Client.FailWrites = true;
+
+        await h.Monitor.StopAsync(CancellationToken.None);
+
+        Assert.Equal(0, h.Sessions.SubscriberCount);
+        Assert.Equal(original, h.Recovery.Load()!.Original);
+        Assert.Equal(10000 * 1024, h.Client.Current.Upload);
+
+        h.Client.FailWrites = false;
+        using var restarted = new LimitController(new LimitControllerTests.FakeFactory(h.Client), h.Recovery);
+        await restarted.RestoreAsync(h.Config.GetConnection(), CancellationToken.None);
+        Assert.Equal(original, h.Client.Current);
+        Assert.Null(h.Recovery.Load());
+    }
+
+    [Fact]
+    public async Task IncompleteSessionEventsDoNotDisturbActivePlayback()
+    {
+        await using var h = new Harness();
+        await h.StartAsync();
+        h.RaiseStart(h.Session());
+        await Until(() => h.Status.Current.State == "Throttling");
+        var writes = h.Client.Writes.Count;
+
+        h.Sessions.Raise(nameof(ISessionManager.PlaybackStart), new PlaybackProgressEventArgs());
+        h.Sessions.Raise(nameof(ISessionManager.PlaybackProgress), new PlaybackProgressEventArgs
+        {
+            Session = new SessionInfo(null!, NullLogger.Instance) { Id = string.Empty }
+        });
+        h.Sessions.Raise(nameof(ISessionManager.PlaybackStopped), new PlaybackStopEventArgs());
+        h.Sessions.Raise(nameof(ISessionManager.SessionEnded), new SessionEventArgs());
+        await h.PulseAsync();
+
+        Assert.Equal("Throttling", h.Status.Current.State);
+        Assert.Equal(1, h.Status.Current.RemoteStreams);
+        Assert.Equal(1000000, h.Status.Current.ReservedBytesPerSecond);
+        Assert.Equal(writes, h.Client.Writes.Count);
+    }
+
+    [Fact]
+    public async Task EventsFromReplacedSessionCannotRetakeOrStopCurrentPlayback()
+    {
+        await using var h = new Harness();
+        await h.StartAsync();
+        var old = h.Session();
+        h.RaiseStart(old);
+        await Until(() => h.Status.Current.ReservedBytesPerSecond == 1000000);
+        var current = h.Session();
+        current.NowPlayingItem.MediaStreams[0].BitRate = 16000000;
+        h.RaiseProgress(current);
+        await Until(() => h.Status.Current.ReservedBytesPerSecond == 2000000);
+
+        // Jellyfin already owns the replacement, but the old SessionEnded has not arrived.
+        h.RaiseProgress(old);
+        h.Sessions.Raise(nameof(ISessionManager.PlaybackStopped), new PlaybackStopEventArgs
+        {
+            Session = old,
+            PlaySessionId = "play",
+            MediaInfo = old.NowPlayingItem
+        });
+        await h.PulseAsync();
+
+        Assert.Equal(1, h.Status.Current.RemoteStreams);
+        Assert.Equal(2000000, h.Status.Current.ReservedBytesPerSecond);
+    }
+
+    [Fact]
     public async Task InvalidDisabledConfigurationDoesNotEvaluateOrFaultTheWorker()
     {
         await using var h = new Harness();
@@ -252,6 +361,7 @@ public class PlaybackReviewRegressionTests
         public LimitControllerTests.FakeClient Client { get; } = new();
         public ThrottleStatus Status { get; } = new();
         public PlaybackMonitor Monitor { get; }
+        public LimitRecoveryStore Recovery { get; }
 
         public Harness()
         {
@@ -264,7 +374,8 @@ public class PlaybackReviewRegressionTests
             Sessions = (PlaybackMonitorTests.SessionProxy)_manager;
             var network = DispatchProxy.Create<INetworkManager, PlaybackMonitorTests.NetworkProxy>();
             Network = (PlaybackMonitorTests.NetworkProxy)network;
-            _limits = new(new LimitControllerTests.FakeFactory(Client), new LimitRecoveryStore(Path.Combine(_directory, "recovery.json")));
+            Recovery = new LimitRecoveryStore(Path.Combine(_directory, "recovery.json"));
+            _limits = new(new LimitControllerTests.FakeFactory(Client), Recovery);
             Monitor = new PlaybackMonitor(_manager, network, _limits, Status, NullLogger<PlaybackMonitor>.Instance);
         }
 
