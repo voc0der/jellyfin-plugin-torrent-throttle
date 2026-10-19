@@ -5,6 +5,7 @@
 # Jellyfin Torrent Throttle
 
 <p align="center">
+  <img src="https://img.shields.io/badge/since-10%2F13%2F2026-blue" alt="Since badge" />
   <a href="https://github.com/voc0der/jellyfin-plugin-torrent-throttle/releases/latest">
     <img src="https://img.shields.io/github/v/release/voc0der/jellyfin-plugin-torrent-throttle?label=stable%20release" alt="Stable release version" />
   </a>
