@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/voc0der/jellyfin-plugin-torrent-throttle/main/icon.png",
     "versions": [
       {
+        "version": "1.0.0.4",
+        "changelog": "## What's Changed\n\n- chore(deps): update dependency node to v26 (#19) (4d44963)\n- chore(deps): update renovatebot/github-action action to v46.3.11 (#18) (b7512a0)\n- chore(deps): update renovatebot/github-action action to v46.3.10 (#17) (4f6ad0f)\n- chore(deps): update all non-major dependencies to 10.0.14 (#16) (f404d66)\n- chore(deps): update github/codeql-action action to v4.39.1 (#15) (bb30cd4)\n- chore(deps): update renovatebot/github-action action to v46.3.9 (#14) (104a442)\n- docs(readme): add since badge (0260700)\n- fix(icon): use shared Obsidian folds artwork (c456bc6)\n- chore(deps): update github/codeql-action action to v4.39.0 (#11) (3bcc4f1)\n- chore(deps): update all non-major dependencies to 10.0.13 (#10) (113438f)\n- chore(deps): update dependency microsoft.net.test.sdk to 18.11.0 (#9) (2a54674)\n- chore(deps): update renovatebot/github-action action to v46.3.8 (#8) (fa6b696)\n- fix(docs): align README badges with Session Provisioning (d498b97)\n- test: raise coverage to 95% and publish coverage reports (93e8fde)\n\n**Full Changelog**: https://github.com/voc0der/jellyfin-plugin-torrent-throttle/compare/1.0.0.3...1.0.0.4\n",
+        "targetAbi": "12.0.0.0",
+        "sourceUrl": "https://github.com/voc0der/jellyfin-plugin-torrent-throttle/releases/download/1.0.0.4/Torrent_Throttle_1.0.0.4.zip",
+        "checksum": "c58f1b2f916110829125038d59acff17",
+        "timestamp": "2026-10-30T20:20:22Z"
+      },
+      {
         "version": "1.0.0.3",
         "changelog": "## What's Changed\n\n- fix(auth): accept the empty login response from qBittorrent 5.2 (3db4867)\n\n**Full Changelog**: https://github.com/voc0der/jellyfin-plugin-torrent-throttle/compare/1.0.0.2...1.0.0.3\n",
         "targetAbi": "12.0.0.0",
